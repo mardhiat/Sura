@@ -7,7 +7,7 @@ from datetime import datetime
 
 st.set_page_config(
     page_title="Sura — Elegant Printed Hijabs",
-    page_icon="🧕",
+    page_icon="logocircle.png",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
