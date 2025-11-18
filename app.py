@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# ==================== CONFIG ====================
+#  CONFIG 
 PAYPAL_LINK = "https://www.paypal.me/TheOfficialSura"
 CASHAPP_LINK = "https://cash.app/$TheOfficialSura"
 ZELLE_INFO = "Phone: +1-862-307-2294"
@@ -51,7 +51,7 @@ PRODUCT_DESCRIPTIONS = {
     "ascent": "Uplifting patterns that celebrate growth and ambition."
 }
 
-# ==================== ORDER NOTIFICATION ====================
+#  ORDER NOTIFICATION 
 def save_order_notification(order_data):
     """Save order to a JSON file for notifications"""
     try:
@@ -72,7 +72,7 @@ def save_order_notification(order_data):
         print(f"Error saving order: {e}")
         return False
 
-# ==================== HELPER FUNCTIONS ====================
+#  HELPER FUNCTIONS 
 def load_products_from_folders(root="."):
     products = []
     root_path = Path(root)
@@ -149,7 +149,7 @@ def prev_image(product_id, max_images):
         st.session_state.current_image_idx[product_id] = 0
     st.session_state.current_image_idx[product_id] = (st.session_state.current_image_idx[product_id] - 1) % max_images
 
-# ==================== STYLING ====================
+#  STYLING 
 st.markdown("""
 <style>
     /* Dark mode support */
@@ -460,11 +460,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ==================== INITIALIZE ====================
+#  INITIALIZE 
 init_session_state()
 products = load_products_from_folders(".")
 
-# ==================== HEADER - TOP LEFT ====================
+#  HEADER - TOP LEFT 
 # Logo - top left, small (not clickable, just decorative)
 header_col1, header_col2 = st.columns([1, 5])
 
@@ -510,7 +510,7 @@ with header_col2:
 
 st.markdown("---")
 
-# ==================== PAGES ====================
+#  PAGES 
 
 # ---------- HOME PAGE ----------
 if st.session_state.page == "home":
@@ -955,7 +955,7 @@ elif st.session_state.page == "returns":
     We typically respond within 24 hours and will work with you to ensure you're happy with your purchase.
     """)
 
-# ==================== FOOTER ====================
+#  FOOTER 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("---")
 
