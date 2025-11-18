@@ -163,17 +163,19 @@ st.markdown("""
         }
         .product-card {
             background: #2a2a2a !important;
-            box-shadow: 0 2px 8px rgba(255,255,255,0.06) !important;
+            border: 2px solid #ffffff !important;
         }
         .cart-item {
             background: #2a2a2a !important;
-            border: 1px solid #3a3a3a !important;
+            border: 2px solid #ffffff !important;
         }
         .hero-section {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2a1a1f 100%) !important;
+            background: #2a2a2a !important;
+            border: 2px solid #ffffff !important;
         }
         .info-box {
-            background: #2a1a1f !important;
+            background: #2a2a2a !important;
+            border: 2px solid #ffffff !important;
         }
         .hero-title, .hero-subtitle {
             color: #ffffff !important;
@@ -196,16 +198,30 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Center all content */
-    .main > div {
+    /* Center ALL content */
+    .stMarkdown, .stMarkdown > div {
+        text-align: center;
+    }
+    
+    /* Center columns content */
+    [data-testid="column"] {
         display: flex;
         flex-direction: column;
         align-items: center;
+        justify-content: center;
     }
     
-    /* Typography */
-    h1, h2, h3 { color: #111111; font-weight: 600; text-align: center; }
-    p { color: #666666; line-height: 1.6; }
+    /* Typography - all centered */
+    h1, h2, h3 { 
+        color: #111111; 
+        font-weight: 600; 
+        text-align: center !important; 
+    }
+    p { 
+        color: #666666; 
+        line-height: 1.6; 
+        text-align: center;
+    }
     
     /* Responsive typography */
     @media (max-width: 768px) {
@@ -214,30 +230,20 @@ st.markdown("""
         h3 { font-size: 1.3rem !important; }
     }
     
-    /* Logo - centered and responsive */
-    .logo-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        margin-bottom: 2rem;
+    /* Logo - top left, small, clickable */
+    .logo-img {
         cursor: pointer;
         transition: opacity 0.2s;
+        max-width: 120px;
     }
     
-    .logo-container:hover {
-        opacity: 0.8;
+    .logo-img:hover {
+        opacity: 0.7;
     }
     
-    .logo-container img {
-        max-width: 300px;
-        width: 100%;
-        height: auto;
-    }
-    
-    @media (max-width: 768px) {
-        .logo-container img {
-            max-width: 180px;
-        }
+    /* Hide logo button */
+    [data-testid="stButton"] button[key="logo_home_btn"] {
+        display: none !important;
     }
     
     /* Navigation - centered */
@@ -251,35 +257,57 @@ st.markdown("""
     
     /* Buttons */
     .stButton > button {
-        background-color: #FFC6D1 !important;
-        color: #111111 !important;
-        border: none !important;
-        border-radius: 8px !important;
+        background-color: #111111 !important;
+        color: #FFFFFF !important;
+        border: 2px solid #111111 !important;
+        border-radius: 0px !important;
         padding: 10px 24px !important;
         font-weight: 600 !important;
-        transition: all 0.3s ease;
+        transition: all 0.2s ease;
     }
     
     .stButton > button:hover {
-        background-color: #ffb3c1 !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(255, 198, 209, 0.4);
+        background-color: #FFFFFF !important;
+        color: #111111 !important;
+        border: 2px solid #111111 !important;
     }
     
     /* Product cards - responsive */
     .product-card {
         background: #FFFFFF;
-        border-radius: 12px;
+        border-radius: 0px;
         padding: 16px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        transition: all 0.3s ease;
+        border: 2px solid #111111;
+        transition: all 0.2s ease;
         cursor: pointer;
         height: 100%;
     }
     
     .product-card:hover {
-        box-shadow: 0 8px 24px rgba(0,0,0,0.12);
-        transform: translateY(-4px);
+        background: #f5f5f5;
+        border: 2px solid #111111;
+    }
+    
+    @media (max-width: 768px) {
+        .product-card {
+            padding: 12px;
+        }
+    }
+    
+    /* Product cards - completely sharp */
+    .product-card {
+        background: #FFFFFF;
+        border-radius: 0px !important;
+        padding: 16px;
+        border: 2px solid #111111;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        height: 100%;
+    }
+    
+    .product-card:hover {
+        background: #f5f5f5;
+        border: 2px solid #111111;
     }
     
     @media (max-width: 768px) {
@@ -289,19 +317,26 @@ st.markdown("""
     }
     
     .product-image {
-        border-radius: 8px;
+        border-radius: 0px !important;
         margin-bottom: 12px;
         width: 100%;
         aspect-ratio: 1;
         object-fit: cover;
+        border: 1px solid #e0e0e0;
     }
     
-    /* Hero section - responsive */
+    /* All Streamlit elements sharp */
+    .stImage, .stImage img {
+        border-radius: 0px !important;
+    }
+    
+    /* Hero section - completely sharp */
     .hero-section {
         text-align: center;
         padding: 3rem 1rem;
-        background: linear-gradient(135deg, #ffffff 0%, #fff5f7 100%);
-        border-radius: 16px;
+        background: #f5f5f5;
+        border: 2px solid #111111;
+        border-radius: 0px !important;
         margin-bottom: 3rem;
         width: 100%;
     }
@@ -352,20 +387,20 @@ st.markdown("""
         }
     }
     
-    /* Info boxes */
+    /* Info boxes - completely sharp */
     .info-box {
-        background: #fff5f7;
-        border-left: 4px solid #FFC6D1;
+        background: #f5f5f5;
+        border: 2px solid #111111;
+        border-radius: 0px !important;
         padding: 1rem;
-        border-radius: 8px;
         margin: 1rem 0;
     }
     
-    /* Cart items */
+    /* Cart items - completely sharp */
     .cart-item {
         background: #FFFFFF;
-        border: 1px solid #f0f0f0;
-        border-radius: 8px;
+        border: 2px solid #111111;
+        border-radius: 0px !important;
         padding: 1rem;
         margin-bottom: 1rem;
     }
@@ -376,10 +411,11 @@ st.markdown("""
         }
     }
     
-    /* Responsive images */
+    /* All images sharp */
     img {
         max-width: 100%;
         height: auto;
+        border-radius: 0px !important;
     }
     
     /* Carousel indicator */
@@ -417,27 +453,24 @@ else:
 st.markdown("<br>", unsafe_allow_html=True)
 
 # Navigation - centered below logo
-nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([1, 1, 1, 1, 1])
+col_spacer1, col_nav1, col_nav2, col_nav3, col_nav4, col_spacer2 = st.columns([1, 1, 1, 1, 1, 1])
 
-with nav_col1:
-    st.write("")  # Spacer
-
-with nav_col2:
+with col_nav1:
     if st.button("Shop", key="nav_shop", use_container_width=True):
         navigate_to("shop")
         st.rerun()
 
-with nav_col3:
+with col_nav2:
     if st.button("About", key="nav_about", use_container_width=True):
         navigate_to("about")
         st.rerun()
 
-with nav_col4:
+with col_nav3:
     if st.button("Return Policy", key="nav_returns", use_container_width=True):
         navigate_to("returns")
         st.rerun()
 
-with nav_col5:
+with col_nav4:
     cart_btn_label = f"Cart ({cart_count()})" if cart_count() > 0 else "Cart"
     if st.button(cart_btn_label, key="nav_cart", use_container_width=True):
         navigate_to("cart")
@@ -894,24 +927,38 @@ elif st.session_state.page == "returns":
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Centered footer
+# Centered footer with new layout
 footer_col1, footer_col2, footer_col3 = st.columns(3)
 
 with footer_col1:
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
+    st.markdown("**Quick Links**")
+    if st.button("Shop", key="footer_shop", use_container_width=True):
+        navigate_to("shop")
+        st.rerun()
+    if st.button("About", key="footer_about", use_container_width=True):
+        navigate_to("about")
+        st.rerun()
+    if st.button("Returns", key="footer_returns", use_container_width=True):
+        navigate_to("returns")
+        st.rerun()
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with footer_col2:
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("**Sura Hijabs**")
     st.markdown("Elegant printed hijabs")
     st.markdown("for modern women")
-
-with footer_col2:
-    st.markdown("**Quick Links**")
-    st.markdown("Shop • About • Returns")
-    st.markdown(f"Instagram: {INSTAGRAM_HANDLE}")
-    st.markdown(f"TikTok: {TIKTOK_HANDLE}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 with footer_col3:
+    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("**Contact**")
     st.markdown(f"{CONTACT_EMAIL}")
     st.markdown("Ships within 1-2 days")
     st.markdown("Free shipping on $50+")
+    st.markdown(f"Instagram: {INSTAGRAM_HANDLE}")
+    st.markdown(f"TikTok: {TIKTOK_HANDLE}")
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<p style='text-align:center;color:#999;font-size:0.85rem;margin-top:2rem'>© 2025 Sura. Made with love.</p>", unsafe_allow_html=True)
