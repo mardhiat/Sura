@@ -47,7 +47,7 @@ PRODUCT_DESCRIPTIONS = {
     "abyss": "Deep, mysterious patterns that evoke the beauty of ocean depths.",
     "acorn": "Warm, earthy tones inspired by autumn's natural elegance.",
     "angelic": "Soft, ethereal prints perfect for everyday grace.",
-    "apex": "Bold geometric designs for the modern, confident woman.",
+    "apex": "Bold geometric designs for the stylish, confident woman.",
     "ascent": "Uplifting patterns that celebrate growth and ambition."
 }
 
@@ -154,7 +154,7 @@ st.markdown("""
 <style>
     /* Dark mode support */
     @media (prefers-color-scheme: dark) {
-        .main { background-color: #1a1a1a !important; }
+        .main { background-color: #000000 !important; }
         .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
             color: #ffffff !important;
         }
@@ -162,26 +162,30 @@ st.markdown("""
             color: #cccccc !important;
         }
         .product-card {
-            background: #2a2a2a !important;
+            background: #1a1a1a !important;
             border: 2px solid #ffffff !important;
         }
         .cart-item {
-            background: #2a2a2a !important;
+            background: #1a1a1a !important;
             border: 2px solid #ffffff !important;
         }
         .hero-section {
-            background: #2a2a2a !important;
+            background: #1a1a1a !important;
             border: 2px solid #ffffff !important;
         }
         .info-box {
-            background: #2a2a2a !important;
+            background: #1a1a1a !important;
             border: 2px solid #ffffff !important;
         }
-        .hero-title, .hero-subtitle {
-            color: #ffffff !important;
+        .stButton > button {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+            border: 2px solid #ffffff !important;
         }
-        .hero-description {
-            color: #cccccc !important;
+        .stButton > button:hover {
+            background-color: #000000 !important;
+            color: #ffffff !important;
+            border: 2px solid #ffffff !important;
         }
     }
     
@@ -270,6 +274,34 @@ st.markdown("""
         background-color: #FFFFFF !important;
         color: #111111 !important;
         border: 2px solid #111111 !important;
+    }
+    
+    /* Active page button styling */
+    .active-page button {
+        background-color: #FFFFFF !important;
+        color: #111111 !important;
+        border: 2px solid #111111 !important;
+    }
+    
+    /* Dark mode buttons */
+    @media (prefers-color-scheme: dark) {
+        .stButton > button {
+            background-color: #FFFFFF !important;
+            color: #000000 !important;
+            border: 2px solid #FFFFFF !important;
+        }
+        
+        .stButton > button:hover {
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
+            border: 2px solid #FFFFFF !important;
+        }
+        
+        .active-page button {
+            background-color: #000000 !important;
+            color: #FFFFFF !important;
+            border: 2px solid #FFFFFF !important;
+        }
     }
     
     /* Product cards - responsive */
@@ -432,49 +464,49 @@ st.markdown("""
 init_session_state()
 products = load_products_from_folders(".")
 
-# ==================== HEADER - CENTERED ====================
-# Logo - full width at top
-if Path("Logo.avif").exists():
-    try:
-        logo_img = Image.open("Logo.avif")
-        if st.button("", key="logo_home_btn", help="Go to Home", use_container_width=True):
+# ==================== HEADER - TOP LEFT ====================
+# Logo - top left, small (not clickable, just decorative)
+header_col1, header_col2 = st.columns([1, 5])
+
+with header_col1:
+    if Path("Logocircle.png").exists():
+        try:
+            logo_img = Image.open("Logocircle.png")
+            st.image(logo_img, width=100)
+        except:
+            st.markdown("**SURA**")
+    else:
+        st.markdown("**SURA**")
+
+with header_col2:
+    # Navigation - right side with Home button added
+    nav_cols = st.columns(5)
+    
+    with nav_cols[0]:
+        if st.button("Home", key="nav_home", use_container_width=True):
             navigate_to("home")
             st.rerun()
-        st.image(logo_img, use_container_width=True)
-    except:
-        if st.button("Sura", key="home_btn_text", use_container_width=True):
-            navigate_to("home")
+    
+    with nav_cols[1]:
+        if st.button("Shop", key="nav_shop", use_container_width=True):
+            navigate_to("shop")
             st.rerun()
-else:
-    if st.button("Sura", key="home_btn", use_container_width=True):
-        navigate_to("home")
-        st.rerun()
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-# Navigation - centered below logo
-col_spacer1, col_nav1, col_nav2, col_nav3, col_nav4, col_spacer2 = st.columns([1, 1, 1, 1, 1, 1])
-
-with col_nav1:
-    if st.button("Shop", key="nav_shop", use_container_width=True):
-        navigate_to("shop")
-        st.rerun()
-
-with col_nav2:
-    if st.button("About", key="nav_about", use_container_width=True):
-        navigate_to("about")
-        st.rerun()
-
-with col_nav3:
-    if st.button("Return Policy", key="nav_returns", use_container_width=True):
-        navigate_to("returns")
-        st.rerun()
-
-with col_nav4:
-    cart_btn_label = f"Cart ({cart_count()})" if cart_count() > 0 else "Cart"
-    if st.button(cart_btn_label, key="nav_cart", use_container_width=True):
-        navigate_to("cart")
-        st.rerun()
+    
+    with nav_cols[2]:
+        if st.button("About", key="nav_about", use_container_width=True):
+            navigate_to("about")
+            st.rerun()
+    
+    with nav_cols[3]:
+        if st.button("Returns", key="nav_returns", use_container_width=True):
+            navigate_to("returns")
+            st.rerun()
+    
+    with nav_cols[4]:
+        cart_btn_label = f"Cart ({cart_count()})" if cart_count() > 0 else "Cart"
+        if st.button(cart_btn_label, key="nav_cart", use_container_width=True):
+            navigate_to("cart")
+            st.rerun()
 
 st.markdown("---")
 
@@ -537,7 +569,7 @@ if st.session_state.page == "home":
 # ---------- SHOP PAGE ----------
 elif st.session_state.page == "shop":
     st.markdown("## Shop All Hijabs")
-    st.markdown("*Each hijab is $10 • Free shipping on orders $50+ or 5+ items*")
+    st.markdown("Each hijab is \$10 | Free shipping on orders \$50+ or 5+ items")
     st.markdown("<br>", unsafe_allow_html=True)
     
     if not products:
@@ -761,7 +793,7 @@ elif st.session_state.page == "payment":
         with col2:
             st.markdown("#### CashApp")
             if "cash.app" in CASHAPP_LINK.lower():
-                st.markdown(f"[Pay ${order['total']:.2f} via CashApp]({CASHAPP_LINK})")
+                st.markdown(f"[Pay \${order['total']:.2f} via CashApp]({CASHAPP_LINK})")
             else:
                 st.markdown("*CashApp link not configured*")
         
@@ -834,7 +866,7 @@ elif st.session_state.page == "about":
     ### Our Story
     
     Sura was born from a simple belief: modesty and style should go hand in hand. We create 
-    printed hijabs that celebrate modern Muslim women — confident, creative, and unapologetically themselves.
+    printed hijabs that celebrate stylish Muslim women — confident, creative, and unapologetically themselves.
     
     Each design is carefully curated and printed on premium fabrics that feel as good as they look. 
     From bold geometrics to soft florals, our collections are designed for real life — 
@@ -947,8 +979,7 @@ with footer_col1:
 with footer_col2:
     st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("**Sura Hijabs**")
-    st.markdown("Elegant printed hijabs")
-    st.markdown("for modern women")
+    st.markdown("Elegant printed hijabs for stylish women")
     st.markdown("</div>", unsafe_allow_html=True)
 
 with footer_col3:
