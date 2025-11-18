@@ -4,6 +4,7 @@ from PIL import Image
 import os
 from pathlib import Path
 from datetime import datetime
+import json
 
 st.set_page_config(
     page_title="Sura — Elegant Printed Hijabs",
@@ -23,6 +24,25 @@ CONTACT_EMAIL = "theofficialsura22@gmail.com"
 DEFAULT_PRICE = 10.00
 PRICE_OVERRIDE = {}
 
+# Shipping calculation rules
+def calculate_shipping(cart_items):
+    total_items = sum(item["qty"] for item in cart_items)
+    subtotal = sum(item["price"] * item["qty"] for item in cart_items)
+    
+    # Free shipping for 5+ items or $50+ order
+    if total_items >= 5 or subtotal >= 50:
+        return 0.00
+    
+    # Shipping rates based on quantity
+    shipping_rates = {
+        1: 6.00,
+        2: 7.00,
+        3: 8.00,
+        4: 9.00
+    }
+    
+    return shipping_rates.get(total_items, 0.00)
+
 PRODUCT_DESCRIPTIONS = {
     "abyss": "Deep, mysterious patterns that evoke the beauty of ocean depths.",
     "acorn": "Warm, earthy tones inspired by autumn's natural elegance.",
@@ -30,6 +50,27 @@ PRODUCT_DESCRIPTIONS = {
     "apex": "Bold geometric designs for the modern, confident woman.",
     "ascent": "Uplifting patterns that celebrate growth and ambition."
 }
+
+# ==================== ORDER NOTIFICATION ====================
+def save_order_notification(order_data):
+    """Save order to a JSON file for notifications"""
+    try:
+        orders_file = Path("orders.json")
+        orders = []
+        
+        if orders_file.exists():
+            with open(orders_file, 'r') as f:
+                orders = json.load(f)
+        
+        orders.append(order_data)
+        
+        with open(orders_file, 'w') as f:
+            json.dump(orders, f, indent=2)
+        
+        return True
+    except Exception as e:
+        print(f"Error saving order: {e}")
+        return False
 
 # ==================== HELPER FUNCTIONS ====================
 def load_products_from_folders(root="."):
@@ -146,17 +187,8 @@ st.markdown("""
     .main { background-color: #FFFFFF; }
     .block-container { 
         padding-top: 2rem !important; 
-        max-width: 1400px;
-        padding-left: 5%;
-        padding-right: 5%;
-    }
-    
-    /* Responsive padding */
-    @media (max-width: 768px) {
-        .block-container {
-            padding-left: 3%;
-            padding-right: 3%;
-        }
+        max-width: 1200px;
+        margin: 0 auto;
     }
     
     /* Hide default Streamlit elements */
@@ -164,8 +196,15 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* Center all content */
+    .main > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
     /* Typography */
-    h1, h2, h3 { color: #111111; font-weight: 600; }
+    h1, h2, h3 { color: #111111; font-weight: 600; text-align: center; }
     p { color: #666666; line-height: 1.6; }
     
     /* Responsive typography */
@@ -175,13 +214,39 @@ st.markdown("""
         h3 { font-size: 1.3rem !important; }
     }
     
-    /* Logo clickable */
+    /* Logo - centered and responsive */
     .logo-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 2rem;
         cursor: pointer;
         transition: opacity 0.2s;
     }
+    
     .logo-container:hover {
         opacity: 0.8;
+    }
+    
+    .logo-container img {
+        max-width: 300px;
+        width: 100%;
+        height: auto;
+    }
+    
+    @media (max-width: 768px) {
+        .logo-container img {
+            max-width: 180px;
+        }
+    }
+    
+    /* Navigation - centered */
+    .nav-container {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 2rem;
+        flex-wrap: wrap;
     }
     
     /* Buttons */
@@ -231,62 +296,6 @@ st.markdown("""
         object-fit: cover;
     }
     
-    /* Carousel controls */
-    .carousel-container {
-        position: relative;
-        width: 100%;
-    }
-    
-    .carousel-btn {
-        position: absolute;
-        top: 50%;
-        transform: translateY(-50%);
-        background: rgba(255, 198, 209, 0.9);
-        border: none;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        font-size: 20px;
-        cursor: pointer;
-        z-index: 10;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.3s;
-    }
-    
-    .carousel-btn:hover {
-        background: rgba(255, 179, 193, 1);
-        transform: translateY(-50%) scale(1.1);
-    }
-    
-    .carousel-btn-left {
-        left: 10px;
-    }
-    
-    .carousel-btn-right {
-        right: 10px;
-    }
-    
-    .carousel-indicator {
-        text-align: center;
-        margin-top: 10px;
-        color: #666666;
-        font-size: 0.9rem;
-    }
-    
-    /* Cart badge */
-    .cart-badge {
-        background-color: #FFC6D1;
-        color: #111111;
-        border-radius: 50%;
-        padding: 4px 10px;
-        font-size: 14px;
-        font-weight: 700;
-        display: inline-block;
-        margin-left: 8px;
-    }
-    
     /* Hero section - responsive */
     .hero-section {
         text-align: center;
@@ -294,6 +303,7 @@ st.markdown("""
         background: linear-gradient(135deg, #ffffff 0%, #fff5f7 100%);
         border-radius: 16px;
         margin-bottom: 3rem;
+        width: 100%;
     }
     
     @media (max-width: 768px) {
@@ -371,6 +381,14 @@ st.markdown("""
         max-width: 100%;
         height: auto;
     }
+    
+    /* Carousel indicator */
+    .carousel-indicator {
+        text-align: center;
+        margin-top: 10px;
+        color: #666666;
+        font-size: 0.9rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -378,42 +396,48 @@ st.markdown("""
 init_session_state()
 products = load_products_from_folders(".")
 
-# ==================== HEADER / NAVIGATION ====================
-col1, col2, col3 = st.columns([2, 3, 2])
-
-with col1:
-    if Path("Logo.avif").exists():
-        try:
-            logo_img = Image.open("Logo.avif")
-            if st.button( key="logo_home_btn", help="Go to Home"):
-                navigate_to("home")
-                st.rerun()
-            st.image(logo_img, width=120)
-        except:
-            if st.button("Sura", key="home_btn_text"):
-                navigate_to("home")
-                st.rerun()
-    else:
-        if st.button("Sura", key="home_btn", use_container_width=False):
+# ==================== HEADER - CENTERED ====================
+# Logo - full width at top
+if Path("Logo.avif").exists():
+    try:
+        logo_img = Image.open("Logo.avif")
+        if st.button("", key="logo_home_btn", help="Go to Home", use_container_width=True):
             navigate_to("home")
             st.rerun()
+        st.image(logo_img, use_container_width=True)
+    except:
+        if st.button("Sura", key="home_btn_text", use_container_width=True):
+            navigate_to("home")
+            st.rerun()
+else:
+    if st.button("Sura", key="home_btn", use_container_width=True):
+        navigate_to("home")
+        st.rerun()
 
-with col2:
-    nav_col1, nav_col2, nav_col3 = st.columns(3)
-    with nav_col1:
-        if st.button("Shop", key="nav_shop", use_container_width=True):
-            navigate_to("shop")
-            st.rerun()
-    with nav_col2:
-        if st.button("About", key="nav_about", use_container_width=True):
-            navigate_to("about")
-            st.rerun()
-    with nav_col3:
-        if st.button("Return Policy", key="nav_returns", use_container_width=True):
-            navigate_to("returns")
-            st.rerun()
+st.markdown("<br>", unsafe_allow_html=True)
 
-with col3:
+# Navigation - centered below logo
+nav_col1, nav_col2, nav_col3, nav_col4, nav_col5 = st.columns([1, 1, 1, 1, 1])
+
+with nav_col1:
+    st.write("")  # Spacer
+
+with nav_col2:
+    if st.button("Shop", key="nav_shop", use_container_width=True):
+        navigate_to("shop")
+        st.rerun()
+
+with nav_col3:
+    if st.button("About", key="nav_about", use_container_width=True):
+        navigate_to("about")
+        st.rerun()
+
+with nav_col4:
+    if st.button("Return Policy", key="nav_returns", use_container_width=True):
+        navigate_to("returns")
+        st.rerun()
+
+with nav_col5:
     cart_btn_label = f"Cart ({cart_count()})" if cart_count() > 0 else "Cart"
     if st.button(cart_btn_label, key="nav_cart", use_container_width=True):
         navigate_to("cart")
@@ -480,13 +504,12 @@ if st.session_state.page == "home":
 # ---------- SHOP PAGE ----------
 elif st.session_state.page == "shop":
     st.markdown("## Shop All Hijabs")
-    st.markdown("*Each hijab is priced at $10 with free local pickup*")
+    st.markdown("*Each hijab is $10 • Free shipping on orders $50+ or 5+ items*")
     st.markdown("<br>", unsafe_allow_html=True)
     
     if not products:
         st.warning("No products available at the moment. Please check back soon!")
     else:
-        # Responsive columns: 3 on desktop, 2 on tablet, 1 on mobile
         cols = st.columns(3)
         for i, product in enumerate(products):
             with cols[i % 3]:
@@ -522,11 +545,9 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        # Image carousel with prev/next buttons
         if len(product["images"]) > 1:
             current_idx = st.session_state.current_image_idx.get(product["id"], 0)
             
-            # Navigation buttons and image display
             btn_col1, img_col, btn_col2 = st.columns([1, 8, 1])
             
             with btn_col1:
@@ -543,7 +564,6 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
                     next_image(product["id"], len(product["images"]))
                     st.rerun()
             
-            # Image indicator
             st.markdown(f"<p class='carousel-indicator'>{current_idx + 1} / {len(product['images'])}</p>", unsafe_allow_html=True)
         else:
             img = Image.open(product["images"][0])
@@ -560,7 +580,7 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
         st.markdown("- Premium printed fabric")
         st.markdown("- Soft and breathable")
         st.markdown("- Perfect for everyday wear")
-        st.markdown("- Free local pickup")
+        st.markdown("- Ships within 1-2 days")
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -579,7 +599,6 @@ elif st.session_state.page == "cart":
             navigate_to("shop")
             st.rerun()
     else:
-        # Display cart items
         for idx, item in enumerate(st.session_state.cart):
             st.markdown("<div class='cart-item'>", unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns([1, 3, 2, 1])
@@ -620,56 +639,57 @@ elif st.session_state.page == "cart":
         
         st.markdown("<br>", unsafe_allow_html=True)
         
+        # Calculate shipping
+        shipping = calculate_shipping(st.session_state.cart)
+        subtotal = cart_subtotal()
+        total = subtotal + shipping
+        
         # Cart summary
         col1, col2 = st.columns([2, 1])
         with col2:
-            st.markdown(f"### Subtotal: ${cart_subtotal():.2f}")
-            st.markdown("*Free local pickup*")
+            st.markdown(f"**Subtotal:** ${subtotal:.2f}")
+            if shipping == 0:
+                st.markdown(f"**Shipping:** FREE")
+            else:
+                st.markdown(f"**Shipping:** ${shipping:.2f}")
+            st.markdown(f"### Total: ${total:.2f}")
+            
+            if cart_count() < 5 and subtotal < 50:
+                st.markdown(f"<small>Add {5 - cart_count()} more items or ${50 - subtotal:.2f} for free shipping!</small>", unsafe_allow_html=True)
         
         st.markdown("---")
         
         # Checkout form
-        st.markdown("### Checkout Information")
+        st.markdown("### Shipping Information")
         
         with st.form("checkout_form"):
             name = st.text_input("Full Name *", placeholder="Your name")
             phone = st.text_input("Phone Number *", placeholder="+1-555-555-5555")
-            email = st.text_input("Email", placeholder="your@email.com")
-            
-            delivery_method = st.radio(
-                "Delivery Method",
-                ["Local Pickup (Free)", "Shipping ($5)"],
-                index=0
-            )
-            
-            if "Shipping" in delivery_method:
-                address = st.text_area("Shipping Address *", placeholder="Street, City, State, ZIP")
-                total = cart_subtotal() + 5.00
-            else:
-                address = ""
-                total = cart_subtotal()
-            
+            email = st.text_input("Email *", placeholder="your@email.com")
+            address = st.text_area("Shipping Address *", placeholder="Street Address, City, State, ZIP Code")
             notes = st.text_area("Order Notes (Optional)", placeholder="Any special requests or preferences?")
             
             submitted = st.form_submit_button("Proceed to Payment", use_container_width=True)
             
             if submitted:
-                if name and phone:
+                if name and phone and email and address:
                     st.session_state.order_info = {
                         "name": name,
                         "phone": phone,
                         "email": email,
-                        "delivery": delivery_method,
                         "address": address,
                         "notes": notes,
+                        "subtotal": subtotal,
+                        "shipping": shipping,
                         "total": total,
                         "items": st.session_state.cart.copy(),
-                        "date": datetime.now().strftime("%Y-%m-%d %H:%M")
+                        "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                        "order_id": f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}"
                     }
                     navigate_to("payment")
                     st.rerun()
                 else:
-                    st.error("Please fill in required fields (Name and Phone)")
+                    st.error("Please fill in all required fields")
 
 # ---------- PAYMENT PAGE ----------
 elif st.session_state.page == "payment":
@@ -683,11 +703,14 @@ elif st.session_state.page == "payment":
         st.markdown("## Complete Your Payment")
         
         st.markdown("<div class='info-box'>", unsafe_allow_html=True)
+        st.markdown(f"**Order ID:** {order['order_id']}")
         st.markdown(f"**Order Total: ${order['total']:.2f}**")
+        st.markdown(f"- Subtotal: ${order['subtotal']:.2f}")
+        st.markdown(f"- Shipping: ${order['shipping']:.2f}" if order['shipping'] > 0 else "- Shipping: FREE")
         st.markdown(f"**Name:** {order['name']}")
+        st.markdown(f"**Email:** {order['email']}")
         st.markdown(f"**Phone:** {order['phone']}")
-        if order['delivery']:
-            st.markdown(f"**Delivery:** {order['delivery']}")
+        st.markdown(f"**Shipping to:** {order['address']}")
         st.markdown("</div>", unsafe_allow_html=True)
         
         st.markdown("### Choose Your Payment Method")
@@ -700,14 +723,14 @@ elif st.session_state.page == "payment":
                 paypal_url = PAYPAL_LINK.rstrip("/") + f"/{int(order['total'])}"
                 st.markdown(f"[Pay ${order['total']:.2f} via PayPal]({paypal_url})")
             else:
-                st.markdown("*Update PayPal link in config*")
+                st.markdown("*PayPal link not configured*")
         
         with col2:
             st.markdown("#### CashApp")
             if "cash.app" in CASHAPP_LINK.lower():
                 st.markdown(f"[Pay ${order['total']:.2f} via CashApp]({CASHAPP_LINK})")
             else:
-                st.markdown("*Update CashApp link in config*")
+                st.markdown("*CashApp link not configured*")
         
         with col3:
             st.markdown("#### Zelle")
@@ -717,42 +740,51 @@ elif st.session_state.page == "payment":
         st.markdown("---")
         
         st.markdown("<div class='info-box'>", unsafe_allow_html=True)
-        st.markdown("### After Payment:")
+        st.markdown("### Important:")
         st.markdown(f"""
-        1. Complete payment using one of the methods above
-        2. Take a screenshot or note your transaction ID
-        3. **Contact us immediately:**
-           - Instagram: {INSTAGRAM_HANDLE}
-           - Email: {CONTACT_EMAIL}
-        4. Include your name: **{order['name']}** and payment confirmation
+        - Complete payment using one of the methods above
+        - Include your **Order ID: {order['order_id']}** in the payment note if possible
+        - We will verify your payment and send you a confirmation email within 24 hours
+        - Your order will ship within 1-2 business days after payment confirmation
+        - Delivery time depends on your location
         
-        We'll prepare your order and contact you within 24 hours!
+        **No need to contact us** — we'll reach out to you once we confirm your payment!
         """)
         st.markdown("</div>", unsafe_allow_html=True)
         
-        if st.button("I've Completed Payment — Clear Cart", use_container_width=True):
-            st.session_state.cart = []
-            st.session_state.order_complete = True
-            navigate_to("confirmation")
-            st.rerun()
+        if st.button("I've Completed Payment", use_container_width=True):
+            # Save order notification
+            if save_order_notification(order):
+                st.session_state.cart = []
+                st.session_state.order_complete = True
+                navigate_to("confirmation")
+                st.rerun()
+            else:
+                st.error("There was an issue saving your order. Please contact us directly.")
 
 # ---------- ORDER CONFIRMATION ----------
 elif st.session_state.page == "confirmation":
-    st.markdown("## Thank You!")
+    st.markdown("## Thank You for Your Order!")
     
-    st.success("Your order has been received!")
+    st.success("Your order has been placed successfully!")
     
-    st.markdown(f"""
-    ### What's Next?
+    if "order_info" in st.session_state:
+        order = st.session_state.order_info
+        st.markdown(f"### Order ID: {order['order_id']}")
     
-    1. **We're waiting for your payment confirmation** — please send us a message with your payment details
-    2. We'll verify payment and prepare your order
-    3. You'll receive a confirmation message within 24 hours
-    4. Pick up or delivery will be coordinated via phone
+    st.markdown("""
+    ### What Happens Next?
     
-    ### Contact Us:
-    - **Instagram:** {INSTAGRAM_HANDLE}
-    - **Email:** {CONTACT_EMAIL}
+    1. We'll verify your payment within 24 hours
+    2. You'll receive a confirmation email with tracking information
+    3. Your order will ship within 1-2 business days
+    4. Delivery time depends on your proximity to us
+    
+    ### Questions?
+    
+    Feel free to reach out:
+    - **Email:** theofficialsura22@gmail.com
+    - **Instagram:** @TheOfficial.Sura
     
     Thank you for supporting Sura!
     """)
@@ -783,11 +815,25 @@ elif st.session_state.page == "about":
     
     **Small Batch** — We produce in limited quantities to ensure quality and reduce waste.
     
+    **Fast Shipping** — We ship within 1-2 business days of payment confirmation.
+    
     **Community** — Supporting modest fashion means supporting each other.
+    
+    ### Shipping Information
+    
+    - **Shipping Rates:**
+      - 1 hijab: $6
+      - 2 hijabs: $7
+      - 3 hijabs: $8
+      - 4 hijabs: $9
+      - 5+ hijabs or $50+ orders: FREE SHIPPING
+    
+    - **Processing:** 1-2 business days
+    - **Delivery:** Depends on your location
     
     ### Connect With Us
     
-    Follow our journey on Instagram {INSTAGRAM_HANDLE} for styling tips, new releases, and behind-the-scenes content.
+    Follow our journey on Instagram {INSTAGRAM_HANDLE} or TikTok {TIKTOK_HANDLE} for styling tips, new releases, and behind-the-scenes content.
     
     Questions? Email us at {CONTACT_EMAIL} — we'd love to hear from you!
     """)
@@ -803,7 +849,7 @@ elif st.session_state.page == "returns":
     
     ### Returns
     
-    - Contact us within **7 days** of pickup or delivery
+    - Contact us within **7 days** of delivery
     - Items must be **unworn, unwashed, and in original condition**
     - Original tags and packaging must be intact
     - We'll arrange a return and provide store credit or exchange
@@ -816,16 +862,24 @@ elif st.session_state.page == "returns":
     
     ### How to Initiate a Return or Exchange
     
-    1. Email us at **{CONTACT_EMAIL}** within 7 days
-    2. Include your order details (name and purchase date)
+    1. Email us at **{CONTACT_EMAIL}** within 7 days of delivery
+    2. Include your order ID and purchase details
     3. Let us know if you'd like store credit or an exchange
     4. We'll provide instructions for return
     
     ### Important Notes
     
     - Hijabs that have been worn, washed, or altered cannot be returned
-    - Sale items may have different return policies
-    - Free local pickup applies to exchanges as well
+    - Customer is responsible for return shipping costs unless item is defective
+    - Refunds will be issued as store credit within 3-5 business days of receiving returned item
+    - Original shipping charges are non-refundable
+    
+    ### Damaged or Defective Items
+    
+    If you receive a damaged or defective item:
+    - Contact us immediately at {CONTACT_EMAIL}
+    - Include photos of the damage/defect
+    - We'll send a replacement at no additional cost
     
     ### Questions?
     
@@ -839,21 +893,25 @@ elif st.session_state.page == "returns":
 # ==================== FOOTER ====================
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("---")
+
+# Centered footer
 footer_col1, footer_col2, footer_col3 = st.columns(3)
 
 with footer_col1:
     st.markdown("**Sura Hijabs**")
-    st.markdown("Elegant printed hijabs  ")
+    st.markdown("Elegant printed hijabs")
     st.markdown("for modern women")
 
 with footer_col2:
     st.markdown("**Quick Links**")
     st.markdown("Shop • About • Returns")
     st.markdown(f"Instagram: {INSTAGRAM_HANDLE}")
+    st.markdown(f"TikTok: {TIKTOK_HANDLE}")
 
 with footer_col3:
     st.markdown("**Contact**")
     st.markdown(f"{CONTACT_EMAIL}")
-    st.markdown("Free local pickup")
+    st.markdown("Ships within 1-2 days")
+    st.markdown("Free shipping on $50+")
 
-st.markdown("<p style='text-align:center;color:#999;font-size:0.85rem;margin-top:2rem'>© 2024 Sura. Made with love.</p>", unsafe_allow_html=True)
+st.markdown("<p style='text-align:center;color:#999;font-size:0.85rem;margin-top:2rem'>© 2025 Sura. Made with love.</p>", unsafe_allow_html=True)
