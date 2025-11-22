@@ -26,59 +26,6 @@ CONTACT_EMAIL = "theofficialsura22@gmail.com"
 DEFAULT_PRICE = 10.00
 PRICE_OVERRIDE = {}
 
-# USER MANAGEMENT
-def load_users():
-    users_file = Path("users.json")
-    if users_file.exists():
-        with open(users_file, 'r') as f:
-            return json.load(f)
-    return {}
-
-def save_users(users):
-    with open("users.json", 'w') as f:
-        json.dump(users, f, indent=2)
-
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-def create_user(email, password, name):
-    users = load_users()
-    if email in users:
-        return False
-    users[email] = {
-        "password": hash_password(password),
-        "name": name,
-        "newsletter": False,
-        "orders": [],
-        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
-    save_users(users)
-    return True
-
-def verify_user(email, password):
-    users = load_users()
-    if email in users and users[email]["password"] == hash_password(password):
-        return True
-    return False
-
-def update_newsletter_status(email, status):
-    users = load_users()
-    if email in users:
-        users[email]["newsletter"] = status
-        save_users(users)
-
-def add_order_to_user(email, order_data):
-    users = load_users()
-    if email in users:
-        users[email]["orders"].append(order_data)
-        save_users(users)
-
-def get_user_orders(email):
-    users = load_users()
-    if email in users:
-        return users[email]["orders"]
-    return []
-
 # Shipping calculation rules
 def calculate_shipping(bag_items):
     total_items = sum(item["qty"] for item in bag_items)
@@ -157,12 +104,8 @@ def init_session_state():
         st.session_state.selected_product = None
     if "current_image_idx" not in st.session_state:
         st.session_state.current_image_idx = {}
-    if "user" not in st.session_state:
-        st.session_state.user = None
-    if "show_auth" not in st.session_state:
-        st.session_state.show_auth = False
-    if "auth_mode" not in st.session_state:
-        st.session_state.auth_mode = "login"
+    if "mobile_menu_open" not in st.session_state:
+        st.session_state.mobile_menu_open = False
 
 def add_to_bag(product):
     for item in st.session_state.bag:
@@ -193,6 +136,7 @@ def bag_subtotal():
 
 def navigate_to(page, product=None):
     st.session_state.page = page
+    st.session_state.mobile_menu_open = False
     if product:
         st.session_state.selected_product = product
         st.session_state.current_image_idx[product["id"]] = 0
@@ -211,7 +155,9 @@ def prev_image(product_id, max_images):
 st.markdown("""
 <style>
     /* Global styles */
-    .main { background-color: #FFFFFF; }
+    .main { 
+        background-color: #FFFFFF; 
+    }
     .block-container { 
         padding-top: 2rem !important; 
         max-width: 1200px;
@@ -222,30 +168,41 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    
-    /* Center content on home page */
-    .stMarkdown, .stMarkdown > div {
-        text-align: center;
-    }
-    
-    /* Center columns content */
-    [data-testid="column"] {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-    }
+    button[kind="header"] {display: none;}
+    [data-testid="stDecoration"] {display: none;}
+    [data-testid="stToolbar"] {display: none;}
+    .stDeployButton {display: none;}
     
     /* Typography */
     h1, h2, h3 { 
-        color: #111111; 
-        font-weight: 600; 
-        text-align: center !important; 
+        color: #000000; 
+        font-weight: 600;
     }
     p { 
-        color: #666666; 
-        line-height: 1.6; 
-        text-align: center;
+        color: #333333; 
+        line-height: 1.6;
+    }
+    
+    /* HOME PAGE ONLY - Center content */
+    .home-centered {
+        text-align: center !important;
+    }
+    .home-centered h1,
+    .home-centered h2,
+    .home-centered h3,
+    .home-centered p {
+        text-align: center !important;
+    }
+    
+    /* All other pages - Left aligned */
+    .content-left {
+        text-align: left !important;
+    }
+    .content-left h1,
+    .content-left h2,
+    .content-left h3,
+    .content-left p {
+        text-align: left !important;
     }
     
     /* Responsive typography */
@@ -259,98 +216,128 @@ st.markdown("""
     .logo-img {
         cursor: pointer;
         transition: opacity 0.2s;
-        max-width: 120px;
+        max-width: 100px;
     }
     
     .logo-img:hover {
         opacity: 0.7;
     }
     
-    /* Navigation bar spacing */
-    .nav-spacing {
-        margin-top: 1cm;
+    /* Navigation wrapper */
+    .nav-wrapper {
+        margin-top: 1.5rem;
         margin-bottom: 1rem;
     }
     
- /* Hide hamburger on desktop */
-    .hamburger-btn {
-        display: none;
+    /* Desktop navigation - text only with underline on hover */
+    .desktop-nav {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 2rem;
     }
     
+    /* Hide all button styling for nav buttons */
+    .nav-wrapper .stButton > button {
+        background-color: transparent !important;
+        color: #000000 !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0px !important;
+        padding: 8px 4px !important;
+        font-weight: 500 !important;
+        transition: border-bottom 0.3s ease;
+        box-shadow: none !important;
+        outline: none !important;
+        min-width: auto !important;
+    }
+    
+    .nav-wrapper .stButton > button:hover {
+        background-color: transparent !important;
+        color: #000000 !important;
+        border: none !important;
+        border-bottom: 2px solid #FFB6C1 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    
+    .nav-wrapper .stButton > button:focus {
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid #FFB6C1 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    
+    .nav-wrapper .stButton > button:active {
+        background-color: transparent !important;
+        border: none !important;
+        border-bottom: 2px solid #FFB6C1 !important;
+        box-shadow: none !important;
+        outline: none !important;
+    }
+    
+    /* Force remove borders on all nav buttons */
+    .nav-wrapper .stButton {
+        background: transparent !important;
+        border: none !important;
+    }
+    
+    .nav-wrapper [data-testid="column"] {
+        background: transparent !important;
+    }
+    
+    /* Hide desktop nav on mobile */
     @media (max-width: 768px) {
         .desktop-nav {
             display: none !important;
         }
-        
-        .hamburger-btn {
+    }
+    
+    /* Mobile hamburger */
+    .hamburger-menu {
+        display: none;
+        text-align: center;
+    }
+    
+    @media (max-width: 768px) {
+        .hamburger-menu {
             display: block !important;
         }
     }
     
-    /* Navigation buttons ONLY - minimal style with underline */
-    .nav-spacing .stButton > button {
-        background-color: transparent !important;
-        color: #111111 !important;
-        border: none !important;
-        border-bottom: 2px solid transparent !important;
-        border-radius: 0px !important;
-        padding: 10px 24px !important;
-        font-weight: 600 !important;
-        transition: all 0.2s ease;
-    }
-    
-    .nav-spacing .stButton > button:hover {
-        background-color: transparent !important;
-        color: #111111 !important;
-        border-bottom: 2px solid #111111 !important;
-        font-weight: 700 !important;
-    }
-            
-    }
-    
-    [data-testid="column"] .stButton > button[kind="secondary"]:hover {
-        background-color: transparent !important;
-        color: #111111 !important;
-        border-bottom: 2px solid #111111 !important;
-        font-weight: 700 !important;
-    }
-    
-    /* Active navigation button */
-    .active-nav-btn {
-        border-bottom: 2px solid #111111 !important;
-    }
-    
-    /* Regular action buttons - with borders */
+    /* Regular action buttons - light grey with pink accent on hover */
     .stButton > button {
-        background-color: #111111 !important;
-        color: #FFFFFF !important;
-        border: 2px solid #111111 !important;
+        background-color: #F5F5F5 !important;
+        color: #000000 !important;
+        border: 2px solid #E0E0E0 !important;
         border-radius: 0px !important;
-        padding: 10px 24px !important;
+        padding: 12px 28px !important;
         font-weight: 600 !important;
-        transition: all 0.2s ease;
+        transition: all 0.3s ease;
     }
     
     .stButton > button:hover {
         background-color: #FFFFFF !important;
-        color: #111111 !important;
-        border: 2px solid #111111 !important;
-        font-weight: 700 !important;
+        color: #000000 !important;
+        border: 2px solid #FFB6C1 !important;
     }
     
     /* Product cards */
     .product-card {
-        background: #FFFFFF;
+        background: #FAFAFA;
         border-radius: 0px !important;
         padding: 16px;
-        border: 2px solid #111111;
-        transition: all 0.2s ease;
+        border: 1px solid #E0E0E0;
+        transition: all 0.3s ease;
         height: 100%;
+        text-align: center;
     }
     
     .product-card:hover {
-        background: #f5f5f5;
-        border: 2px solid #111111;
+        background: #FFF5F7;
+        border: 1px solid #FFB6C1;
+        box-shadow: 0 2px 8px rgba(255, 182, 193, 0.2);
     }
     
     @media (max-width: 768px) {
@@ -359,26 +346,16 @@ st.markdown("""
         }
     }
     
-    .product-image {
-        border-radius: 0px !important;
-        margin-bottom: 12px;
-        width: 100%;
-        aspect-ratio: 1;
-        object-fit: cover;
-        border: 1px solid #e0e0e0;
-    }
-    
     /* All images sharp */
     .stImage, .stImage img, img {
         border-radius: 0px !important;
     }
     
-    /* Hero section */
+    /* Hero section - centered for home page */
     .hero-section {
         text-align: center !important;
         padding: 3rem 1rem;
         background: transparent;
-        border: none;
         margin-bottom: 3rem;
         width: 100%;
     }
@@ -393,7 +370,7 @@ st.markdown("""
     .hero-title {
         font-size: 3rem;
         font-weight: 700;
-        color: #111111;
+        color: #000000;
         margin-bottom: 0.5rem;
         text-align: center !important;
     }
@@ -406,7 +383,7 @@ st.markdown("""
     
     .hero-subtitle {
         font-size: 1.5rem;
-        color: #666666;
+        color: #FFB6C1;
         margin-bottom: 1rem;
         text-align: center !important;
     }
@@ -419,10 +396,15 @@ st.markdown("""
     
     .hero-description {
         font-size: 1.1rem;
-        color: #666666;
+        color: #555555;
         max-width: 600px;
-        margin: 0 auto 2rem;
+        margin: 0 auto 2rem !important;
         line-height: 1.8;
+        text-align: center !important;
+        display: block;
+    }
+    
+    .hero-description p {
         text-align: center !important;
     }
     
@@ -434,17 +416,17 @@ st.markdown("""
     
     /* Info boxes */
     .info-box {
-        background: #f5f5f5;
-        border: 2px solid #111111;
+        background: #FAFAFA;
+        border: 1px solid #E0E0E0;
         border-radius: 0px !important;
-        padding: 1rem;
+        padding: 1.5rem;
         margin: 1rem 0;
     }
     
     /* Bag items */
     .bag-item {
         background: #FFFFFF;
-        border: 2px solid #111111;
+        border: 1px solid #E0E0E0;
         border-radius: 0px !important;
         padding: 1rem;
         margin-bottom: 1rem;
@@ -463,34 +445,6 @@ st.markdown("""
         color: #666666;
         font-size: 0.9rem;
     }
-    
-    /* Auth modal overlay */
-    .auth-overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        background: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-    
-    /* Auth modal */
-    .auth-modal {
-        background: #FFFFFF;
-        border: 2px solid #111111;
-        padding: 2rem;
-        max-width: 450px;
-        width: 90%;
-        margin: 0 auto;
-        position: relative;
-        z-index: 1000;
-        max-height: 90vh;
-        overflow-y: auto;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -498,133 +452,94 @@ st.markdown("""
 init_session_state()
 products = load_products_from_folders(".")
 
-# AUTH MODAL (render first so it appears on top)
-if st.session_state.show_auth and not st.session_state.user:
-    st.markdown('<div class="auth-overlay"></div>', unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
-    with col2:
-        st.markdown('<div class="auth-modal">', unsafe_allow_html=True)
-        
-        tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
-        
-        with tab1:
-            with st.form("login_form"):
-                st.markdown("### Sign In to Your Account")
-                email = st.text_input("Email")
-                password = st.text_input("Password", type="password")
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    submitted = st.form_submit_button("Sign In", use_container_width=True)
-                
-                if submitted:
-                    if verify_user(email, password):
-                        st.session_state.user = email
-                        st.session_state.show_auth = False
-                        st.success("Welcome back!")
-                        st.rerun()
-                    else:
-                        st.error("Invalid email or password")
-        
-        with tab2:
-            with st.form("signup_form"):
-                st.markdown("### Create Your Account")
-                name = st.text_input("Full Name")
-                email = st.text_input("Email")
-                password = st.text_input("Password", type="password")
-                confirm_password = st.text_input("Confirm Password", type="password")
-                newsletter = st.checkbox("Subscribe to our newsletter for updates and exclusive offers")
-                submitted = st.form_submit_button("Create Account", use_container_width=True)
-                
-                if submitted:
-                    if password != confirm_password:
-                        st.error("Passwords don't match")
-                    elif len(password) < 6:
-                        st.error("Password must be at least 6 characters")
-                    elif create_user(email, password, name):
-                        st.session_state.user = email
-                        if newsletter:
-                            update_newsletter_status(email, True)
-                        st.session_state.show_auth = False
-                        st.success("Account created successfully!")
-                        st.rerun()
-                    else:
-                        st.error("Email already exists")
-        
-        if st.button("✕ Close", key="close_auth", use_container_width=True):
-            st.session_state.show_auth = False
-            st.rerun()
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-
 #  HEADER
-header_col1, header_col2, header_col3 = st.columns([1, 4, 1])
+header_col1, header_col2, header_col3 = st.columns([1, 6, 1])
 
 with header_col1:
-    if Path("Logocircle.png").exists():
+    if Path("logocircle.png").exists():
         try:
-            logo_img = Image.open("Logocircle.png")
-            st.image(logo_img, width=100)
+            logo_img = Image.open("logocircle.png")
+            st.image(logo_img, width=80)
         except:
             st.markdown("**SURA**")
     else:
         st.markdown("**SURA**")
 
 with header_col2:
-    # Desktop Navigation
-    st.markdown('<div class="nav-spacing desktop-nav">', unsafe_allow_html=True)
-    nav_cols = st.columns(5)
+    # Desktop Navigation - HTML/CSS based
+    st.markdown('<div class="nav-wrapper">', unsafe_allow_html=True)
+    st.markdown('<div class="desktop-nav">', unsafe_allow_html=True)
     
+    # Add active page CSS
+    active_page = st.session_state.page
+    if active_page == "home":
+        st.markdown('<style>.nav-wrapper [data-testid="column"]:nth-child(1) .stButton > button { border-bottom: 2px solid #FFB6C1 !important; }</style>', unsafe_allow_html=True)
+    elif active_page == "shop":
+        st.markdown('<style>.nav-wrapper [data-testid="column"]:nth-child(2) .stButton > button { border-bottom: 2px solid #FFB6C1 !important; }</style>', unsafe_allow_html=True)
+    elif active_page == "about":
+        st.markdown('<style>.nav-wrapper [data-testid="column"]:nth-child(3) .stButton > button { border-bottom: 2px solid #FFB6C1 !important; }</style>', unsafe_allow_html=True)
+    elif active_page == "returns":
+        st.markdown('<style>.nav-wrapper [data-testid="column"]:nth-child(4) .stButton > button { border-bottom: 2px solid #FFB6C1 !important; }</style>', unsafe_allow_html=True)
+    elif active_page == "bag":
+        st.markdown('<style>.nav-wrapper [data-testid="column"]:nth-child(5) .stButton > button { border-bottom: 2px solid #FFB6C1 !important; }</style>', unsafe_allow_html=True)
+    
+    nav_cols = st.columns(5)
     with nav_cols[0]:
-        if st.button("Home", key="nav_home", type="secondary", use_container_width=True):
+        if st.button("Home", key="nav_home", help="Home"):
             navigate_to("home")
             st.rerun()
-        if st.session_state.page == "home":
-            st.markdown('<style>[data-testid="column"]:nth-child(1) .stButton > button { border-bottom: 2px solid #111111 !important; }</style>', unsafe_allow_html=True)
-    
     with nav_cols[1]:
-        if st.button("Shop", key="nav_shop", type="secondary", use_container_width=True):
+        if st.button("Shop", key="nav_shop", help="Shop"):
             navigate_to("shop")
             st.rerun()
-    
     with nav_cols[2]:
-        if st.button("About", key="nav_about", type="secondary", use_container_width=True):
+        if st.button("About", key="nav_about", help="About"):
             navigate_to("about")
             st.rerun()
-    
     with nav_cols[3]:
-        if st.button("Returns", key="nav_returns", type="secondary", use_container_width=True):
+        if st.button("Returns", key="nav_returns", help="Returns"):
             navigate_to("returns")
             st.rerun()
-    
     with nav_cols[4]:
-        bag_btn_label = f"Bag ({bag_count()})" if bag_count() > 0 else "Bag"
-        if st.button(bag_btn_label, key="nav_bag", type="secondary", use_container_width=True):
+        bag_label = f"Bag ({bag_count()})" if bag_count() > 0 else "Bag"
+        if st.button(bag_label, key="nav_bag", help="Shopping Bag"):
             navigate_to("bag")
             st.rerun()
     
     st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
     
-    # Mobile Hamburger
-    st.markdown('<div class="hamburger-btn">', unsafe_allow_html=True)
-    if st.button("☰ Menu", key="hamburger"):
-        st.session_state.mobile_menu_open = True
+    # Mobile Hamburger Menu
+    st.markdown('<div class="hamburger-menu">', unsafe_allow_html=True)
+    if st.button("☰ Menu", key="hamburger_toggle"):
+        st.session_state.mobile_menu_open = not st.session_state.mobile_menu_open
         st.rerun()
+    
+    if st.session_state.mobile_menu_open:
+        if st.button("Home", key="mobile_home", use_container_width=True):
+            navigate_to("home")
+            st.rerun()
+        if st.button("Shop", key="mobile_shop", use_container_width=True):
+            navigate_to("shop")
+            st.rerun()
+        if st.button("About", key="mobile_about", use_container_width=True):
+            navigate_to("about")
+            st.rerun()
+        if st.button("Returns", key="mobile_returns", use_container_width=True):
+            navigate_to("returns")
+            st.rerun()
+        if st.button("Privacy Policy", key="mobile_privacy", use_container_width=True):
+            navigate_to("privacy")
+            st.rerun()
+        mobile_bag_label = f"Bag ({bag_count()})" if bag_count() > 0 else "Bag"
+        if st.button(mobile_bag_label, key="mobile_bag", use_container_width=True):
+            navigate_to("bag")
+            st.rerun()
+    
     st.markdown('</div>', unsafe_allow_html=True)
 
 with header_col3:
-    st.markdown('<div class="nav-spacing">', unsafe_allow_html=True)
-    if st.session_state.user:
-        users = load_users()
-        user_data = users[st.session_state.user]
-        if st.button(f"👤 {user_data['name']}", key="user_menu", type="secondary"):
-            navigate_to("account")
-            st.rerun()
-    else:
-        if st.button("Sign In", key="show_auth_btn", type="secondary"):
-            st.session_state.show_auth = True
-            st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.write("")  # Empty space for balance
 
 st.markdown("---")
 
@@ -632,6 +547,8 @@ st.markdown("---")
 
 # ---------- HOME PAGE ----------
 if st.session_state.page == "home":
+    st.markdown('<div class="home-centered">', unsafe_allow_html=True)
+    
     st.markdown("""
     <div class="hero-section">
         <h1 class="hero-title">Sura — Elegant Printed Hijabs</h1>
@@ -658,6 +575,7 @@ if st.session_state.page == "home":
         cols = st.columns([1, 1, 1] if len(products) >= 3 else [1] * len(products))
         for i, product in enumerate(products[:3]):
             with cols[i]:
+                st.markdown("<div class='product-card'>", unsafe_allow_html=True)
                 try:
                     img = Image.open(product["images"][0])
                     st.image(img, use_container_width=True)
@@ -668,6 +586,7 @@ if st.session_state.page == "home":
                         st.rerun()
                 except Exception as e:
                     st.error("Image loading error")
+                st.markdown("</div>", unsafe_allow_html=True)
     
     st.markdown("<br><br>", unsafe_allow_html=True)
     
@@ -683,11 +602,14 @@ if st.session_state.page == "home":
     with col3:
         st.markdown("**Small Batch**")
         st.write("Limited quantities ensure exclusivity and care")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- SHOP PAGE ----------
 elif st.session_state.page == "shop":
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     st.markdown("## Shop All Hijabs")
-    st.markdown("Each hijab is \$10 | Free shipping on orders \$50+ or 5+ items")
+    st.markdown("Each hijab is $10 | Free shipping on orders $50+ or 5+ items")
     st.markdown("<br>", unsafe_allow_html=True)
     
     if not products:
@@ -713,10 +635,12 @@ elif st.session_state.page == "shop":
                 except Exception as e:
                     st.error("Image error")
                 st.markdown("</div>", unsafe_allow_html=True)
-                st.markdown("<br>", unsafe_allow_html=True)
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- PRODUCT DETAIL PAGE ----------
 elif st.session_state.page == "product" and st.session_state.selected_product:
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     product = st.session_state.selected_product
     
     if st.button("← Back to Shop", key="back_to_shop"):
@@ -755,7 +679,7 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
     with col2:
         st.markdown(f"## {product['name']}")
         st.markdown(f"### ${product['price']:.2f}")
-        st.markdown(f"<p style='text-align:center'>{product['description']}</p>", unsafe_allow_html=True)
+        st.markdown(f"<p>{product['description']}</p>", unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -771,9 +695,12 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
             add_to_bag(product)
             st.success(f"Added to bag!")
             st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- BAG PAGE ----------
 elif st.session_state.page == "bag":
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     st.markdown("## Shopping Bag")
     
     if bag_count() == 0:
@@ -846,15 +773,8 @@ elif st.session_state.page == "bag":
         st.markdown("### Shipping Information")
         
         with st.form("checkout_form"):
-            if st.session_state.user:
-                users = load_users()
-                user_data = users[st.session_state.user]
-                name = st.text_input("Full Name *", value=user_data['name'])
-                email = st.text_input("Email *", value=st.session_state.user, disabled=True)
-            else:
-                name = st.text_input("Full Name *", placeholder="Your name")
-                email = st.text_input("Email *", placeholder="your@email.com")
-            
+            name = st.text_input("Full Name *", placeholder="Your name")
+            email = st.text_input("Email *", placeholder="your@email.com")
             phone = st.text_input("Phone Number *", placeholder="+1-555-555-5555")
             address = st.text_area("Shipping Address *", placeholder="Street Address, City, State, ZIP Code")
             notes = st.text_area("Order Notes (Optional)", placeholder="Any special requests or preferences?")
@@ -882,10 +802,12 @@ elif st.session_state.page == "bag":
                     st.rerun()
                 else:
                     st.error("Please fill in all required fields")
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- PAYMENT PAGE ----------
 elif st.session_state.page == "payment":
-    st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     if "order_info" not in st.session_state:
         st.warning("No order information found. Please complete checkout first.")
         navigate_to("bag")
@@ -946,12 +868,7 @@ elif st.session_state.page == "payment":
         st.markdown("</div>", unsafe_allow_html=True)
         
         if st.button("I've Completed Payment", use_container_width=True):
-            # Save order notification
             if save_order_notification(order):
-                # Add order to user account if logged in
-                if st.session_state.user:
-                    add_order_to_user(st.session_state.user, order)
-                
                 st.session_state.bag = []
                 st.session_state.order_complete = True
                 navigate_to("confirmation")
@@ -959,10 +876,11 @@ elif st.session_state.page == "payment":
             else:
                 st.error("There was an issue saving your order. Please contact us directly.")
     
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- ORDER CONFIRMATION ----------
 elif st.session_state.page == "confirmation":
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     st.markdown("## Thank You for Your Order!")
     
     st.success("Your order has been placed successfully!")
@@ -991,76 +909,12 @@ elif st.session_state.page == "confirmation":
     if st.button("Return to Shop", use_container_width=True):
         navigate_to("shop")
         st.rerun()
-
-# ---------- ACCOUNT PAGE ----------
-elif st.session_state.page == "account":
-    if not st.session_state.user:
-        st.warning("Please sign in to view your account.")
-        navigate_to("home")
-        st.rerun()
-    else:
-        users = load_users()
-        user_data = users[st.session_state.user]
-        
-        st.markdown(f"## Welcome, {user_data['name']}!")
-        
-        tab1, tab2, tab3 = st.tabs(["Orders", "Newsletter", "Account Settings"])
-        
-        with tab1:
-            st.markdown("### Your Orders")
-            orders = user_data.get("orders", [])
-            
-            if not orders:
-                st.info("You haven't placed any orders yet.")
-                if st.button("Start Shopping"):
-                    navigate_to("shop")
-                    st.rerun()
-            else:
-                for order in reversed(orders):
-                    with st.expander(f"Order {order['order_id']} - ${order['total']:.2f} - {order['date']}"):
-                        st.markdown(f"**Status:** {order.get('status', 'Processing')}")
-                        st.markdown(f"**Total:** ${order['total']:.2f}")
-                        st.markdown(f"**Shipping:** ${order['shipping']:.2f}" if order['shipping'] > 0 else "**Shipping:** FREE")
-                        st.markdown("**Items:**")
-                        for item in order['items']:
-                            st.markdown(f"- {item['name']} x{item['qty']} - ${item['price'] * item['qty']:.2f}")
-                        st.markdown(f"**Shipping Address:** {order['address']}")
-        
-        with tab2:
-            st.markdown("### Newsletter Subscription")
-            
-            current_status = user_data.get("newsletter", False)
-            
-            newsletter_opt = st.checkbox("Subscribe to newsletter", value=current_status)
-            
-            if st.button("Update Newsletter Preference"):
-                update_newsletter_status(st.session_state.user, newsletter_opt)
-                st.success("Newsletter preference updated!")
-                st.rerun()
-            
-            st.markdown("---")
-            st.markdown("Stay updated with:")
-            st.markdown("- New hijab collections")
-            st.markdown("- Exclusive discounts")
-            st.markdown("- Style tips and inspiration")
-            st.markdown("- Early access to sales")
-        
-        with tab3:
-            st.markdown("### Account Settings")
-            st.markdown(f"**Email:** {st.session_state.user}")
-            st.markdown(f"**Member since:** {user_data.get('created_at', 'N/A')}")
-            
-            st.markdown("<br>", unsafe_allow_html=True)
-            
-            if st.button("Sign Out", use_container_width=True):
-                st.session_state.user = None
-                st.success("You've been signed out.")
-                navigate_to("home")
-                st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- ABOUT PAGE ----------
 elif st.session_state.page == "about":
-    st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     st.markdown("## About Sura")
     
     st.markdown(f"""
@@ -1103,11 +957,11 @@ elif st.session_state.page == "about":
     
     Questions? Email us at {CONTACT_EMAIL} — we'd love to hear from you!
     """)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # ---------- RETURNS PAGE ----------
 elif st.session_state.page == "returns":
-    st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
     st.markdown("## Returns & Exchanges")
     
     st.markdown(f"""
@@ -1157,17 +1011,95 @@ elif st.session_state.page == "returns":
     
     We typically respond within 24 hours and will work with you to ensure you're happy with your purchase.
     """)
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# ---------- PRIVACY POLICY PAGE ----------
+elif st.session_state.page == "privacy":
+    st.markdown('<div class="content-left">', unsafe_allow_html=True)
+    st.markdown("## Privacy Policy")
+    
+    st.markdown(f"""
+    **Effective Date:** January 1, 2025
+    
+    ### Introduction
+    
+    At Sura, we value your privacy and are committed to protecting your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you shop with us.
+    
+    ### Information We Collect
+    
+    When you place an order, we collect:
+    - **Personal Information:** Name, email address, phone number
+    - **Shipping Information:** Delivery address
+    - **Order Information:** Products purchased, quantities, prices
+    - **Payment Information:** We do not store payment details. Payments are processed securely through PayPal, CashApp, or Zelle
+    
+    ### How We Use Your Information
+    
+    We use your information to:
+    - Process and fulfill your orders
+    - Send order confirmations and shipping updates
+    - Respond to your inquiries and customer service requests
+    - Send promotional emails (only if you've opted in)
+    - Improve our products and services
+    
+    ### Information Sharing
+    
+    We do not sell, trade, or rent your personal information to third parties. We may share information with:
+    - **Shipping carriers** to deliver your orders
+    - **Payment processors** to complete transactions
+    - **Legal authorities** if required by law
+    
+    ### Data Security
+    
+    We implement reasonable security measures to protect your information. However, no method of transmission over the internet is 100% secure. We cannot guarantee absolute security of your data.
+    
+    ### Your Rights
+    
+    You have the right to:
+    - Access the personal information we hold about you
+    - Request correction of inaccurate information
+    - Request deletion of your information
+    - Opt-out of marketing communications at any time
+    
+    ### Cookies and Tracking
+    
+    Our website may use session cookies to improve your browsing experience. We do not use third-party tracking or analytics tools.
+    
+    ### Newsletter and Marketing
+    
+    If you opt-in to our newsletter, we will send you:
+    - New product announcements
+    - Exclusive discounts and promotions
+    - Style tips and inspiration
+    
+    You can unsubscribe at any time by contacting us at {CONTACT_EMAIL}.
+    
+    ### Children's Privacy
+    
+    Our website is not intended for children under 13. We do not knowingly collect information from children.
+    
+    ### Changes to This Policy
+    
+    We may update this Privacy Policy from time to time. Any changes will be posted on this page with an updated effective date.
+    
+    ### Contact Us
+    
+    If you have questions about this Privacy Policy or your personal information, please contact us:
+    
+    - **Email:** {CONTACT_EMAIL}
+    - **Instagram:** {INSTAGRAM_HANDLE}
+    
+    Thank you for trusting Sura with your information!
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 #  FOOTER 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Centered footer
 footer_col1, footer_col2, footer_col3 = st.columns(3)
 
 with footer_col1:
-    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("**Quick Links**")
     if st.button("Shop", key="footer_shop", use_container_width=True):
         navigate_to("shop")
@@ -1178,22 +1110,20 @@ with footer_col1:
     if st.button("Returns", key="footer_returns", use_container_width=True):
         navigate_to("returns")
         st.rerun()
-    st.markdown("</div>", unsafe_allow_html=True)
+    if st.button("Privacy Policy", key="footer_privacy", use_container_width=True):
+        navigate_to("privacy")
+        st.rerun()
 
 with footer_col2:
-    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("**Sura Hijabs**")
     st.markdown("Elegant printed hijabs for stylish women")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 with footer_col3:
-    st.markdown("<div style='text-align: center;'>", unsafe_allow_html=True)
     st.markdown("**Contact**")
     st.markdown(f"{CONTACT_EMAIL}")
     st.markdown("Ships within 1-2 days")
     st.markdown("Free shipping on $50+")
     st.markdown(f"Instagram: {INSTAGRAM_HANDLE}")
     st.markdown(f"TikTok: {TIKTOK_HANDLE}")
-    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown("<p style='text-align:center;color:#999;font-size:0.85rem;margin-top:2rem'>© 2025 Sura. Made with love.</p>", unsafe_allow_html=True)
