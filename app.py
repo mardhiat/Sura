@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 from datetime import datetime
 import json
+import hashlib
+import random
 
 st.set_page_config(
     page_title="Sura — Elegant Printed Hijabs",
@@ -24,16 +26,67 @@ CONTACT_EMAIL = "theofficialsura22@gmail.com"
 DEFAULT_PRICE = 10.00
 PRICE_OVERRIDE = {}
 
+# USER MANAGEMENT
+def load_users():
+    users_file = Path("users.json")
+    if users_file.exists():
+        with open(users_file, 'r') as f:
+            return json.load(f)
+    return {}
+
+def save_users(users):
+    with open("users.json", 'w') as f:
+        json.dump(users, f, indent=2)
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def create_user(email, password, name):
+    users = load_users()
+    if email in users:
+        return False
+    users[email] = {
+        "password": hash_password(password),
+        "name": name,
+        "newsletter": False,
+        "orders": [],
+        "created_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    }
+    save_users(users)
+    return True
+
+def verify_user(email, password):
+    users = load_users()
+    if email in users and users[email]["password"] == hash_password(password):
+        return True
+    return False
+
+def update_newsletter_status(email, status):
+    users = load_users()
+    if email in users:
+        users[email]["newsletter"] = status
+        save_users(users)
+
+def add_order_to_user(email, order_data):
+    users = load_users()
+    if email in users:
+        users[email]["orders"].append(order_data)
+        save_users(users)
+
+def get_user_orders(email):
+    users = load_users()
+    if email in users:
+        return users[email]["orders"]
+    return []
+
 # Shipping calculation rules
-def calculate_shipping(cart_items):
-    total_items = sum(item["qty"] for item in cart_items)
-    subtotal = sum(item["price"] * item["qty"] for item in cart_items)
+def calculate_shipping(bag_items):
+    total_items = sum(item["qty"] for item in bag_items)
+    subtotal = sum(item["price"] * item["qty"] for item in bag_items)
     
-    # Free shipping for 5+ items or $50+ order
     if total_items >= 5 or subtotal >= 50:
         return 0.00
     
-    # Shipping rates based on quantity
     shipping_rates = {
         1: 6.00,
         2: 7.00,
@@ -53,7 +106,6 @@ PRODUCT_DESCRIPTIONS = {
 
 #  ORDER NOTIFICATION 
 def save_order_notification(order_data):
-    """Save order to a JSON file for notifications"""
     try:
         orders_file = Path("orders.json")
         orders = []
@@ -97,21 +149,27 @@ def load_products_from_folders(root="."):
     return products
 
 def init_session_state():
-    if "cart" not in st.session_state:
-        st.session_state.cart = []
+    if "bag" not in st.session_state:
+        st.session_state.bag = []
     if "page" not in st.session_state:
         st.session_state.page = "home"
     if "selected_product" not in st.session_state:
         st.session_state.selected_product = None
     if "current_image_idx" not in st.session_state:
         st.session_state.current_image_idx = {}
+    if "user" not in st.session_state:
+        st.session_state.user = None
+    if "show_auth" not in st.session_state:
+        st.session_state.show_auth = False
+    if "auth_mode" not in st.session_state:
+        st.session_state.auth_mode = "login"
 
-def add_to_cart(product):
-    for item in st.session_state.cart:
+def add_to_bag(product):
+    for item in st.session_state.bag:
         if item["id"] == product["id"]:
             item["qty"] += 1
             return
-    st.session_state.cart.append({
+    st.session_state.bag.append({
         "id": product["id"],
         "name": product["name"],
         "price": product["price"],
@@ -119,19 +177,19 @@ def add_to_cart(product):
         "qty": 1,
     })
 
-def remove_from_cart(idx):
-    if 0 <= idx < len(st.session_state.cart):
-        st.session_state.cart.pop(idx)
+def remove_from_bag(idx):
+    if 0 <= idx < len(st.session_state.bag):
+        st.session_state.bag.pop(idx)
 
 def update_qty(idx, delta):
-    if 0 <= idx < len(st.session_state.cart):
-        st.session_state.cart[idx]["qty"] = max(1, st.session_state.cart[idx]["qty"] + delta)
+    if 0 <= idx < len(st.session_state.bag):
+        st.session_state.bag[idx]["qty"] = max(1, st.session_state.bag[idx]["qty"] + delta)
 
-def cart_count():
-    return sum(item["qty"] for item in st.session_state.cart)
+def bag_count():
+    return sum(item["qty"] for item in st.session_state.bag)
 
-def cart_subtotal():
-    return sum(item["price"] * item["qty"] for item in st.session_state.cart)
+def bag_subtotal():
+    return sum(item["price"] * item["qty"] for item in st.session_state.bag)
 
 def navigate_to(page, product=None):
     st.session_state.page = page
@@ -152,43 +210,6 @@ def prev_image(product_id, max_images):
 #  STYLING 
 st.markdown("""
 <style>
-    /* Dark mode support */
-    @media (prefers-color-scheme: dark) {
-        .main { background-color: #000000 !important; }
-        .stMarkdown h1, .stMarkdown h2, .stMarkdown h3, .stMarkdown h4 {
-            color: #ffffff !important;
-        }
-        .stMarkdown p, .stMarkdown div {
-            color: #cccccc !important;
-        }
-        .product-card {
-            background: #1a1a1a !important;
-            border: 2px solid #ffffff !important;
-        }
-        .cart-item {
-            background: #1a1a1a !important;
-            border: 2px solid #ffffff !important;
-        }
-        .hero-section {
-            background: #1a1a1a !important;
-            border: 2px solid #ffffff !important;
-        }
-        .info-box {
-            background: #1a1a1a !important;
-            border: 2px solid #ffffff !important;
-        }
-        .stButton > button {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-            border: 2px solid #ffffff !important;
-        }
-        .stButton > button:hover {
-            background-color: #000000 !important;
-            color: #ffffff !important;
-            border: 2px solid #ffffff !important;
-        }
-    }
-    
     /* Global styles */
     .main { background-color: #FFFFFF; }
     .block-container { 
@@ -202,7 +223,7 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
-    /* Center ALL content */
+    /* Center content on home page */
     .stMarkdown, .stMarkdown > div {
         text-align: center;
     }
@@ -215,7 +236,7 @@ st.markdown("""
         justify-content: center;
     }
     
-    /* Typography - all centered */
+    /* Typography */
     h1, h2, h3 { 
         color: #111111; 
         font-weight: 600; 
@@ -234,7 +255,7 @@ st.markdown("""
         h3 { font-size: 1.3rem !important; }
     }
     
-    /* Logo - top left, small, clickable */
+    /* Logo */
     .logo-img {
         cursor: pointer;
         transition: opacity 0.2s;
@@ -245,21 +266,61 @@ st.markdown("""
         opacity: 0.7;
     }
     
-    /* Hide logo button */
-    [data-testid="stButton"] button[key="logo_home_btn"] {
-        display: none !important;
+    /* Navigation bar spacing */
+    .nav-spacing {
+        margin-top: 1cm;
+        margin-bottom: 1rem;
     }
     
-    /* Navigation - centered */
-    .nav-container {
-        display: flex;
-        justify-content: center;
-        gap: 1rem;
-        margin-bottom: 2rem;
-        flex-wrap: wrap;
+ /* Hide hamburger on desktop */
+    .hamburger-btn {
+        display: none;
     }
     
-    /* Buttons */
+    @media (max-width: 768px) {
+        .desktop-nav {
+            display: none !important;
+        }
+        
+        .hamburger-btn {
+            display: block !important;
+        }
+    }
+    
+    /* Navigation buttons ONLY - minimal style with underline */
+    .nav-spacing .stButton > button {
+        background-color: transparent !important;
+        color: #111111 !important;
+        border: none !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0px !important;
+        padding: 10px 24px !important;
+        font-weight: 600 !important;
+        transition: all 0.2s ease;
+    }
+    
+    .nav-spacing .stButton > button:hover {
+        background-color: transparent !important;
+        color: #111111 !important;
+        border-bottom: 2px solid #111111 !important;
+        font-weight: 700 !important;
+    }
+            
+    }
+    
+    [data-testid="column"] .stButton > button[kind="secondary"]:hover {
+        background-color: transparent !important;
+        color: #111111 !important;
+        border-bottom: 2px solid #111111 !important;
+        font-weight: 700 !important;
+    }
+    
+    /* Active navigation button */
+    .active-nav-btn {
+        border-bottom: 2px solid #111111 !important;
+    }
+    
+    /* Regular action buttons - with borders */
     .stButton > button {
         background-color: #111111 !important;
         color: #FFFFFF !important;
@@ -274,66 +335,16 @@ st.markdown("""
         background-color: #FFFFFF !important;
         color: #111111 !important;
         border: 2px solid #111111 !important;
+        font-weight: 700 !important;
     }
     
-    /* Active page button styling */
-    .active-page button {
-        background-color: #FFFFFF !important;
-        color: #111111 !important;
-        border: 2px solid #111111 !important;
-    }
-    
-    /* Dark mode buttons */
-    @media (prefers-color-scheme: dark) {
-        .stButton > button {
-            background-color: #FFFFFF !important;
-            color: #000000 !important;
-            border: 2px solid #FFFFFF !important;
-        }
-        
-        .stButton > button:hover {
-            background-color: #000000 !important;
-            color: #FFFFFF !important;
-            border: 2px solid #FFFFFF !important;
-        }
-        
-        .active-page button {
-            background-color: #000000 !important;
-            color: #FFFFFF !important;
-            border: 2px solid #FFFFFF !important;
-        }
-    }
-    
-    /* Product cards - responsive */
-    .product-card {
-        background: #FFFFFF;
-        border-radius: 0px;
-        padding: 16px;
-        border: 2px solid #111111;
-        transition: all 0.2s ease;
-        cursor: pointer;
-        height: 100%;
-    }
-    
-    .product-card:hover {
-        background: #f5f5f5;
-        border: 2px solid #111111;
-    }
-    
-    @media (max-width: 768px) {
-        .product-card {
-            padding: 12px;
-        }
-    }
-    
-    /* Product cards - completely sharp */
+    /* Product cards */
     .product-card {
         background: #FFFFFF;
         border-radius: 0px !important;
         padding: 16px;
         border: 2px solid #111111;
         transition: all 0.2s ease;
-        cursor: pointer;
         height: 100%;
     }
     
@@ -357,18 +368,17 @@ st.markdown("""
         border: 1px solid #e0e0e0;
     }
     
-    /* All Streamlit elements sharp */
-    .stImage, .stImage img {
+    /* All images sharp */
+    .stImage, .stImage img, img {
         border-radius: 0px !important;
     }
     
-    /* Hero section - completely sharp */
+    /* Hero section */
     .hero-section {
-        text-align: center;
+        text-align: center !important;
         padding: 3rem 1rem;
-        background: #f5f5f5;
-        border: 2px solid #111111;
-        border-radius: 0px !important;
+        background: transparent;
+        border: none;
         margin-bottom: 3rem;
         width: 100%;
     }
@@ -385,6 +395,7 @@ st.markdown("""
         font-weight: 700;
         color: #111111;
         margin-bottom: 0.5rem;
+        text-align: center !important;
     }
     
     @media (max-width: 768px) {
@@ -397,6 +408,7 @@ st.markdown("""
         font-size: 1.5rem;
         color: #666666;
         margin-bottom: 1rem;
+        text-align: center !important;
     }
     
     @media (max-width: 768px) {
@@ -411,6 +423,7 @@ st.markdown("""
         max-width: 600px;
         margin: 0 auto 2rem;
         line-height: 1.8;
+        text-align: center !important;
     }
     
     @media (max-width: 768px) {
@@ -419,7 +432,7 @@ st.markdown("""
         }
     }
     
-    /* Info boxes - completely sharp */
+    /* Info boxes */
     .info-box {
         background: #f5f5f5;
         border: 2px solid #111111;
@@ -428,8 +441,8 @@ st.markdown("""
         margin: 1rem 0;
     }
     
-    /* Cart items - completely sharp */
-    .cart-item {
+    /* Bag items */
+    .bag-item {
         background: #FFFFFF;
         border: 2px solid #111111;
         border-radius: 0px !important;
@@ -438,16 +451,9 @@ st.markdown("""
     }
     
     @media (max-width: 768px) {
-        .cart-item {
+        .bag-item {
             padding: 0.75rem;
         }
-    }
-    
-    /* All images sharp */
-    img {
-        max-width: 100%;
-        height: auto;
-        border-radius: 0px !important;
     }
     
     /* Carousel indicator */
@@ -457,6 +463,34 @@ st.markdown("""
         color: #666666;
         font-size: 0.9rem;
     }
+    
+    /* Auth modal overlay */
+    .auth-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    /* Auth modal */
+    .auth-modal {
+        background: #FFFFFF;
+        border: 2px solid #111111;
+        padding: 2rem;
+        max-width: 450px;
+        width: 90%;
+        margin: 0 auto;
+        position: relative;
+        z-index: 1000;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -464,9 +498,67 @@ st.markdown("""
 init_session_state()
 products = load_products_from_folders(".")
 
-#  HEADER - TOP LEFT 
-# Logo - top left, small (not clickable, just decorative)
-header_col1, header_col2 = st.columns([1, 5])
+# AUTH MODAL (render first so it appears on top)
+if st.session_state.show_auth and not st.session_state.user:
+    st.markdown('<div class="auth-overlay"></div>', unsafe_allow_html=True)
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        st.markdown('<div class="auth-modal">', unsafe_allow_html=True)
+        
+        tab1, tab2 = st.tabs(["Sign In", "Sign Up"])
+        
+        with tab1:
+            with st.form("login_form"):
+                st.markdown("### Sign In to Your Account")
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password")
+                col_a, col_b = st.columns(2)
+                with col_a:
+                    submitted = st.form_submit_button("Sign In", use_container_width=True)
+                
+                if submitted:
+                    if verify_user(email, password):
+                        st.session_state.user = email
+                        st.session_state.show_auth = False
+                        st.success("Welcome back!")
+                        st.rerun()
+                    else:
+                        st.error("Invalid email or password")
+        
+        with tab2:
+            with st.form("signup_form"):
+                st.markdown("### Create Your Account")
+                name = st.text_input("Full Name")
+                email = st.text_input("Email")
+                password = st.text_input("Password", type="password")
+                confirm_password = st.text_input("Confirm Password", type="password")
+                newsletter = st.checkbox("Subscribe to our newsletter for updates and exclusive offers")
+                submitted = st.form_submit_button("Create Account", use_container_width=True)
+                
+                if submitted:
+                    if password != confirm_password:
+                        st.error("Passwords don't match")
+                    elif len(password) < 6:
+                        st.error("Password must be at least 6 characters")
+                    elif create_user(email, password, name):
+                        st.session_state.user = email
+                        if newsletter:
+                            update_newsletter_status(email, True)
+                        st.session_state.show_auth = False
+                        st.success("Account created successfully!")
+                        st.rerun()
+                    else:
+                        st.error("Email already exists")
+        
+        if st.button("✕ Close", key="close_auth", use_container_width=True):
+            st.session_state.show_auth = False
+            st.rerun()
+        
+        st.markdown('</div>', unsafe_allow_html=True)
+
+#  HEADER
+header_col1, header_col2, header_col3 = st.columns([1, 4, 1])
 
 with header_col1:
     if Path("Logocircle.png").exists():
@@ -479,34 +571,60 @@ with header_col1:
         st.markdown("**SURA**")
 
 with header_col2:
-    # Navigation - right side with Home button added
+    # Desktop Navigation
+    st.markdown('<div class="nav-spacing desktop-nav">', unsafe_allow_html=True)
     nav_cols = st.columns(5)
     
     with nav_cols[0]:
-        if st.button("Home", key="nav_home", use_container_width=True):
+        if st.button("Home", key="nav_home", type="secondary", use_container_width=True):
             navigate_to("home")
             st.rerun()
+        if st.session_state.page == "home":
+            st.markdown('<style>[data-testid="column"]:nth-child(1) .stButton > button { border-bottom: 2px solid #111111 !important; }</style>', unsafe_allow_html=True)
     
     with nav_cols[1]:
-        if st.button("Shop", key="nav_shop", use_container_width=True):
+        if st.button("Shop", key="nav_shop", type="secondary", use_container_width=True):
             navigate_to("shop")
             st.rerun()
     
     with nav_cols[2]:
-        if st.button("About", key="nav_about", use_container_width=True):
+        if st.button("About", key="nav_about", type="secondary", use_container_width=True):
             navigate_to("about")
             st.rerun()
     
     with nav_cols[3]:
-        if st.button("Returns", key="nav_returns", use_container_width=True):
+        if st.button("Returns", key="nav_returns", type="secondary", use_container_width=True):
             navigate_to("returns")
             st.rerun()
     
     with nav_cols[4]:
-        cart_btn_label = f"Cart ({cart_count()})" if cart_count() > 0 else "Cart"
-        if st.button(cart_btn_label, key="nav_cart", use_container_width=True):
-            navigate_to("cart")
+        bag_btn_label = f"Bag ({bag_count()})" if bag_count() > 0 else "Bag"
+        if st.button(bag_btn_label, key="nav_bag", type="secondary", use_container_width=True):
+            navigate_to("bag")
             st.rerun()
+    
+    st.markdown('</div>', unsafe_allow_html=True)
+    
+    # Mobile Hamburger
+    st.markdown('<div class="hamburger-btn">', unsafe_allow_html=True)
+    if st.button("☰ Menu", key="hamburger"):
+        st.session_state.mobile_menu_open = True
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+with header_col3:
+    st.markdown('<div class="nav-spacing">', unsafe_allow_html=True)
+    if st.session_state.user:
+        users = load_users()
+        user_data = users[st.session_state.user]
+        if st.button(f"👤 {user_data['name']}", key="user_menu", type="secondary"):
+            navigate_to("account")
+            st.rerun()
+    else:
+        if st.button("Sign In", key="show_auth_btn", type="secondary"):
+            st.session_state.show_auth = True
+            st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 st.markdown("---")
 
@@ -581,16 +699,16 @@ elif st.session_state.page == "shop":
                 st.markdown("<div class='product-card'>", unsafe_allow_html=True)
                 try:
                     img = Image.open(product["images"][0])
+                    st.image(img, use_container_width=True)
+                    st.markdown(f"**{product['name']}**")
+                    st.markdown(f"<p style='color:#666666;font-size:0.9rem;text-align:center'>{product['description']}</p>", unsafe_allow_html=True)
+                    st.markdown(f"**${product['price']:.2f}**")
                     if st.button("View Details", key=f"view_{product['id']}", use_container_width=True):
                         navigate_to("product", product)
                         st.rerun()
-                    st.image(img, use_container_width=True)
-                    st.markdown(f"**{product['name']}**")
-                    st.markdown(f"<p style='color:#666666;font-size:0.9rem'>{product['description']}</p>", unsafe_allow_html=True)
-                    st.markdown(f"**${product['price']:.2f}**")
-                    if st.button(f"Add to Cart", key=f"add_{product['id']}", use_container_width=True):
-                        add_to_cart(product)
-                        st.success(f"{product['name']} added to cart!")
+                    if st.button(f"Add to Bag", key=f"add_{product['id']}", use_container_width=True):
+                        add_to_bag(product)
+                        st.success(f"{product['name']} added to bag!")
                         st.rerun()
                 except Exception as e:
                     st.error("Image error")
@@ -601,7 +719,7 @@ elif st.session_state.page == "shop":
 elif st.session_state.page == "product" and st.session_state.selected_product:
     product = st.session_state.selected_product
     
-    if st.button("Back to Shop", key="back_to_shop"):
+    if st.button("← Back to Shop", key="back_to_shop"):
         navigate_to("shop")
         st.rerun()
     
@@ -637,7 +755,7 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
     with col2:
         st.markdown(f"## {product['name']}")
         st.markdown(f"### ${product['price']:.2f}")
-        st.markdown(f"{product['description']}")
+        st.markdown(f"<p style='text-align:center'>{product['description']}</p>", unsafe_allow_html=True)
         
         st.markdown("<br>", unsafe_allow_html=True)
         
@@ -649,23 +767,23 @@ elif st.session_state.page == "product" and st.session_state.selected_product:
         
         st.markdown("<br>", unsafe_allow_html=True)
         
-        if st.button("Add to Cart — $" + str(int(product['price'])), key="add_detail", use_container_width=True):
-            add_to_cart(product)
-            st.success(f"Added to cart!")
+        if st.button("Add to Bag — $" + str(int(product['price'])), key="add_detail", use_container_width=True):
+            add_to_bag(product)
+            st.success(f"Added to bag!")
             st.rerun()
 
-# ---------- CART PAGE ----------
-elif st.session_state.page == "cart":
-    st.markdown("## Shopping Cart")
+# ---------- BAG PAGE ----------
+elif st.session_state.page == "bag":
+    st.markdown("## Shopping Bag")
     
-    if cart_count() == 0:
-        st.info("Your cart is empty. Browse our collection and add some beautiful hijabs!")
+    if bag_count() == 0:
+        st.info("Your bag is empty. Browse our collection and add some beautiful hijabs!")
         if st.button("Continue Shopping"):
             navigate_to("shop")
             st.rerun()
     else:
-        for idx, item in enumerate(st.session_state.cart):
-            st.markdown("<div class='cart-item'>", unsafe_allow_html=True)
+        for idx, item in enumerate(st.session_state.bag):
+            st.markdown("<div class='bag-item'>", unsafe_allow_html=True)
             col1, col2, col3, col4 = st.columns([1, 3, 2, 1])
             
             with col1:
@@ -676,8 +794,8 @@ elif st.session_state.page == "cart":
                         pass
             
             with col2:
-                st.markdown(f"**{item['name']}**")
-                st.markdown(f"${item['price']:.2f} each")
+                st.markdown(f"<p style='text-align:left'><strong>{item['name']}</strong></p>", unsafe_allow_html=True)
+                st.markdown(f"<p style='text-align:left'>${item['price']:.2f} each</p>", unsafe_allow_html=True)
             
             with col3:
                 qty_col1, qty_col2, qty_col3 = st.columns([1, 2, 1])
@@ -686,7 +804,7 @@ elif st.session_state.page == "cart":
                         if item["qty"] > 1:
                             update_qty(idx, -1)
                         else:
-                            remove_from_cart(idx)
+                            remove_from_bag(idx)
                         st.rerun()
                 with qty_col2:
                     st.markdown(f"<p style='text-align:center;margin-top:8px'>{item['qty']}</p>", unsafe_allow_html=True)
@@ -697,7 +815,7 @@ elif st.session_state.page == "cart":
             
             with col4:
                 if st.button("Remove", key=f"remove_{idx}"):
-                    remove_from_cart(idx)
+                    remove_from_bag(idx)
                     st.rerun()
             
             st.markdown("</div>", unsafe_allow_html=True)
@@ -705,11 +823,11 @@ elif st.session_state.page == "cart":
         st.markdown("<br>", unsafe_allow_html=True)
         
         # Calculate shipping
-        shipping = calculate_shipping(st.session_state.cart)
-        subtotal = cart_subtotal()
+        shipping = calculate_shipping(st.session_state.bag)
+        subtotal = bag_subtotal()
         total = subtotal + shipping
         
-        # Cart summary
+        # Bag summary
         col1, col2 = st.columns([2, 1])
         with col2:
             st.markdown(f"**Subtotal:** ${subtotal:.2f}")
@@ -719,8 +837,8 @@ elif st.session_state.page == "cart":
                 st.markdown(f"**Shipping:** ${shipping:.2f}")
             st.markdown(f"### Total: ${total:.2f}")
             
-            if cart_count() < 5 and subtotal < 50:
-                st.markdown(f"<small>Add {5 - cart_count()} more items or ${50 - subtotal:.2f} for free shipping!</small>", unsafe_allow_html=True)
+            if bag_count() < 5 and subtotal < 50:
+                st.markdown(f"<small>Add {5 - bag_count()} more items or ${50 - subtotal:.2f} for free shipping!</small>", unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -728,9 +846,16 @@ elif st.session_state.page == "cart":
         st.markdown("### Shipping Information")
         
         with st.form("checkout_form"):
-            name = st.text_input("Full Name *", placeholder="Your name")
+            if st.session_state.user:
+                users = load_users()
+                user_data = users[st.session_state.user]
+                name = st.text_input("Full Name *", value=user_data['name'])
+                email = st.text_input("Email *", value=st.session_state.user, disabled=True)
+            else:
+                name = st.text_input("Full Name *", placeholder="Your name")
+                email = st.text_input("Email *", placeholder="your@email.com")
+            
             phone = st.text_input("Phone Number *", placeholder="+1-555-555-5555")
-            email = st.text_input("Email *", placeholder="your@email.com")
             address = st.text_area("Shipping Address *", placeholder="Street Address, City, State, ZIP Code")
             notes = st.text_area("Order Notes (Optional)", placeholder="Any special requests or preferences?")
             
@@ -738,6 +863,7 @@ elif st.session_state.page == "cart":
             
             if submitted:
                 if name and phone and email and address:
+                    order_id = f"ORD-{datetime.now().strftime('%Y%m%d')}-{random.randint(1000, 9999)}"
                     st.session_state.order_info = {
                         "name": name,
                         "phone": phone,
@@ -747,9 +873,10 @@ elif st.session_state.page == "cart":
                         "subtotal": subtotal,
                         "shipping": shipping,
                         "total": total,
-                        "items": st.session_state.cart.copy(),
+                        "items": st.session_state.bag.copy(),
                         "date": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "order_id": f"ORD-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+                        "order_id": order_id,
+                        "status": "Pending Payment"
                     }
                     navigate_to("payment")
                     st.rerun()
@@ -758,9 +885,10 @@ elif st.session_state.page == "cart":
 
 # ---------- PAYMENT PAGE ----------
 elif st.session_state.page == "payment":
+    st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
     if "order_info" not in st.session_state:
         st.warning("No order information found. Please complete checkout first.")
-        navigate_to("cart")
+        navigate_to("bag")
         st.rerun()
     else:
         order = st.session_state.order_info
@@ -793,7 +921,7 @@ elif st.session_state.page == "payment":
         with col2:
             st.markdown("#### CashApp")
             if "cash.app" in CASHAPP_LINK.lower():
-                st.markdown(f"[Pay \${order['total']:.2f} via CashApp]({CASHAPP_LINK})")
+                st.markdown(f"[Pay ${order['total']:.2f} via CashApp]({CASHAPP_LINK})")
             else:
                 st.markdown("*CashApp link not configured*")
         
@@ -820,12 +948,18 @@ elif st.session_state.page == "payment":
         if st.button("I've Completed Payment", use_container_width=True):
             # Save order notification
             if save_order_notification(order):
-                st.session_state.cart = []
+                # Add order to user account if logged in
+                if st.session_state.user:
+                    add_order_to_user(st.session_state.user, order)
+                
+                st.session_state.bag = []
                 st.session_state.order_complete = True
                 navigate_to("confirmation")
                 st.rerun()
             else:
                 st.error("There was an issue saving your order. Please contact us directly.")
+    
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- ORDER CONFIRMATION ----------
 elif st.session_state.page == "confirmation":
@@ -858,8 +992,75 @@ elif st.session_state.page == "confirmation":
         navigate_to("shop")
         st.rerun()
 
+# ---------- ACCOUNT PAGE ----------
+elif st.session_state.page == "account":
+    if not st.session_state.user:
+        st.warning("Please sign in to view your account.")
+        navigate_to("home")
+        st.rerun()
+    else:
+        users = load_users()
+        user_data = users[st.session_state.user]
+        
+        st.markdown(f"## Welcome, {user_data['name']}!")
+        
+        tab1, tab2, tab3 = st.tabs(["Orders", "Newsletter", "Account Settings"])
+        
+        with tab1:
+            st.markdown("### Your Orders")
+            orders = user_data.get("orders", [])
+            
+            if not orders:
+                st.info("You haven't placed any orders yet.")
+                if st.button("Start Shopping"):
+                    navigate_to("shop")
+                    st.rerun()
+            else:
+                for order in reversed(orders):
+                    with st.expander(f"Order {order['order_id']} - ${order['total']:.2f} - {order['date']}"):
+                        st.markdown(f"**Status:** {order.get('status', 'Processing')}")
+                        st.markdown(f"**Total:** ${order['total']:.2f}")
+                        st.markdown(f"**Shipping:** ${order['shipping']:.2f}" if order['shipping'] > 0 else "**Shipping:** FREE")
+                        st.markdown("**Items:**")
+                        for item in order['items']:
+                            st.markdown(f"- {item['name']} x{item['qty']} - ${item['price'] * item['qty']:.2f}")
+                        st.markdown(f"**Shipping Address:** {order['address']}")
+        
+        with tab2:
+            st.markdown("### Newsletter Subscription")
+            
+            current_status = user_data.get("newsletter", False)
+            
+            newsletter_opt = st.checkbox("Subscribe to newsletter", value=current_status)
+            
+            if st.button("Update Newsletter Preference"):
+                update_newsletter_status(st.session_state.user, newsletter_opt)
+                st.success("Newsletter preference updated!")
+                st.rerun()
+            
+            st.markdown("---")
+            st.markdown("Stay updated with:")
+            st.markdown("- New hijab collections")
+            st.markdown("- Exclusive discounts")
+            st.markdown("- Style tips and inspiration")
+            st.markdown("- Early access to sales")
+        
+        with tab3:
+            st.markdown("### Account Settings")
+            st.markdown(f"**Email:** {st.session_state.user}")
+            st.markdown(f"**Member since:** {user_data.get('created_at', 'N/A')}")
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            
+            if st.button("Sign Out", use_container_width=True):
+                st.session_state.user = None
+                st.success("You've been signed out.")
+                navigate_to("home")
+                st.rerun()
+
 # ---------- ABOUT PAGE ----------
 elif st.session_state.page == "about":
+    st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
     st.markdown("## About Sura")
     
     st.markdown(f"""
@@ -902,9 +1103,11 @@ elif st.session_state.page == "about":
     
     Questions? Email us at {CONTACT_EMAIL} — we'd love to hear from you!
     """)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 # ---------- RETURNS PAGE ----------
 elif st.session_state.page == "returns":
+    st.markdown("<div style='text-align: left;'>", unsafe_allow_html=True)
     st.markdown("## Returns & Exchanges")
     
     st.markdown(f"""
@@ -954,12 +1157,13 @@ elif st.session_state.page == "returns":
     
     We typically respond within 24 hours and will work with you to ensure you're happy with your purchase.
     """)
+    st.markdown("</div>", unsafe_allow_html=True)
 
 #  FOOTER 
 st.markdown("<br><br>", unsafe_allow_html=True)
 st.markdown("---")
 
-# Centered footer with new layout
+# Centered footer
 footer_col1, footer_col2, footer_col3 = st.columns(3)
 
 with footer_col1:
